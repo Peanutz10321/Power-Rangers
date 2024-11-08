@@ -4,132 +4,70 @@ import random
 
 class Player(pg.sprite.Sprite):
     def __init__(self, game, x, y):
+        self._layer = 10
         self.groups = game.all_sprites
         pg.sprite.Sprite.__init__(self, self.groups)
         self.game = game
         self.image = game.player_img
-        self.original = game.player_img
         self.rect = self.image.get_rect()
-        self.vs ,self.vy = 0,0
+        self.vx ,self.vy = 0,0
         self.x = x
         self.y = y
-        self.direction = 'right'
         
-    '''def get_keys(self):
+    def get_keys(self):
         self.vx , self.vy = 0,0
         keys = pg.key.get_pressed()
-        if keys[pg.K_Left] or keys[pg.K_a]:
+        if keys[pg.K_LEFT] or keys[pg.K_a]:
             self.vx = -PLAYER_SPEED
         
-        elif keys[pg.K_UP] or keys[pg.K_w]:
+        if keys[pg.K_UP] or keys[pg.K_w]:
             self.vy = -PLAYER_SPEED
         
-        elif keys[pg.K_RIGHT] or keys[pg.K_d]:
+        if keys[pg.K_RIGHT] or keys[pg.K_d]:
             self.vx = PLAYER_SPEED
             
-        elif keys[pg.K_DOWN] or keys[pg.K_s]:
-            self.vy = PLAYER_SPEED'''
+        if keys[pg.K_DOWN] or keys[pg.K_s]:
+            self.vy = PLAYER_SPEED
+        
+        if self.vx != 0 and self.vy != 0:
+            self.vx *= 0.7071
+            self.vy *= 0.7071
         
         
     def move(self, dx=0, dy=0):
-        if not self.collision(dx,dy):
-            self.x += dx
-            self.y += dy
-            
-            if dx > 0:
-                self.direction = 'right'
-            elif dx < 0:
-                self.direction = 'left'
-            elif dy > 0:
-                self.direction = 'down'
-            elif dy < 0:
-                self.direction = 'up'        
-    
-    def collision(self,dx=0,dy=0):
-        for wall in self.game.walls:
-            if wall.x == self.x + dx and wall.y == self.y + dy:
-                return True
-        return False
-
-    def update(self):
-        if self.direction == 'up':
-            self.image = self.original
-        elif self.direction == 'down':
-            self.image = self.original
-        elif self.direction == 'left':
-            self.image = pg.transform.flip(self.original,True,False)                
-        elif self.direction == 'right':
-            self.image = self.original
-        
-        self.rect.x = self.x * TILESIZE
-        self.rect.y = self.y * TILESIZE
-
-class Enemy(pg.sprite.Sprite):
-    def __init__(self,game,x,y):
-        self.groups = game.all_sprites, game.walls
-        pg.sprite.Sprite.__init__(self,self.groups)
-        self.game = game
-        self.image = game.enemy_img
-        self.original = game.enemy_img
-        self.rect = self.image.get_rect()
-        self.x = x
-        self.y = y
-        self.moving_direction = 'right'
-        self.direction = random.randint(0,3)
-        self.steps = random.randint(1,3)
-        self.move_delay = 1000
-        self.last_move = pg.time.get_ticks() 
-    
-    def update(self):
-        self.move()
-        if self.moving_direction == 'up':
-            self.image = pg.transform.rotate(self.original,90)
-        elif self.moving_direction == 'down':
-            self.image = pg.transform.rotate(self.original,-90)
-        elif self.moving_direction == 'left':
-            self.image = pg.transform.rotate(self.original,180)                
-        elif self.moving_direction == 'right':
-            self.image = self.original        
-        self.rect.x = self.x * TILESIZE
-        self.rect.y = self.y * TILESIZE
-    
-    def collision(self,dx=0,dy=0):
-        for wall in self.game.walls:
-            if wall.x == self.x + dx and wall.y == self.y + dy:
-                return True
-        return False    
-        
-        
-    def move(self):
-        directions = ((-1,0),(1,0),(0,-1),(0,1))
-        dx , dy = directions[self.direction]
-        
-        if dx == -1:
-            self.moving_direction = "left"
-        elif dx == 1:
-            self.moving_direction = "right"
-        elif dy == -1:
-            self.moving_direction = "up"
-        elif dy == 1:
-            self.moving_direction = "down"                    
-        
-        now = pg.time.get_ticks()
-        
-        if now - self.last_move > self.move_delay:
-            if not self.collision(dx,dy):
-                self.x += dx
-                self.y += dy
-            
-            else:
-                self.direction = random.randint(0,3)
+        self.x += dx
+        self.y += dy
                 
-            self.last_move = now
+    def collision(self,prompt):
+        if prompt == 'x':
+            hit = pg.sprite.spritecollide(self,self.game.walls, False)
+            if hit:
+                if self.vx > 0:
+                    self.rect.right = hit[0].rect.left
+                if self.vx < 0:
+                    self.rect.left = hit[0].rect.right
+                self.vx = 0
+                self.x = self.rect.x
+                
+        elif prompt == 'y':
+            hit = pg.sprite.spritecollide(self,self.game.walls, False)
+            if hit:
+                if self.vy > 0:
+                    self.rect.bottom = hit[0].rect.top
+                if self.vy < 0:
+                    self.rect.top = hit[0].rect.bottom
+                self.vy = 0
+                self.y = self.rect.y        
             
-        
-            self.steps -= 1
-            if self.steps <= 0:
-                self.direction = random.randint(0,3)
-                self.steps = random.randint(1,2)  
+
+    def update(self):
+        self.get_keys()
+        self.x += self.vx * self.game.dt
+        self.y += self.vy * self.game.dt
+        self.rect.x = self.x
+        self.collision('x')
+        self.rect.y = self.y
+        self.collision('y')            
 
 class Wall(pg.sprite.Sprite):
     def __init__ (self,game,x,y):
@@ -143,3 +81,97 @@ class Wall(pg.sprite.Sprite):
         self.y = y
         self.rect.x = x * TILESIZE
         self.rect.y = y * TILESIZE
+    
+class Path(pg.sprite.Sprite):
+    def __init__ (self,game,x,y):
+        self.groups = game.all_sprites
+        pg.sprite.Sprite.__init__(self,self.groups)
+        self.game = game
+        self.image = game.path_img
+        self.rect = self.image.get_rect()
+        self.x = x
+        self.y = y
+        self.rect.x = x * TILESIZE
+        self.rect.y = y * TILESIZE
+
+class Grass(pg.sprite.Sprite):
+    def __init__ (self,game,x,y):
+        self.groups = game.all_sprites
+        pg.sprite.Sprite.__init__(self,self.groups)
+        self.game = game
+        self.image = game.grass_img
+        self.rect = self.image.get_rect()
+        self.x = x
+        self.y = y
+        self.rect.x = x * TILESIZE
+        self.rect.y = y * TILESIZE
+        
+class Tree(pg.sprite.Sprite):
+    def __init__ (self,game,x,y):
+        self.groups = game.all_sprites
+        pg.sprite.Sprite.__init__(self,self.groups)
+        self.game = game
+        self.image = game.tree_img
+        self.rect = self.image.get_rect()
+        self.rect.width = 2 * TILESIZE
+        self.rect.height = 4 *TILESIZE
+        self.x = x
+        self.y = y
+        self.rect.x = x * TILESIZE 
+        self.rect.y = y * TILESIZE
+
+class Big(pg.sprite.Sprite):
+    def __init__ (self,game,x,y):
+        self.groups = game.all_sprites
+        pg.sprite.Sprite.__init__(self,self.groups)
+        self.game = game
+        self.image = game.big_img
+        self.rect = self.image.get_rect()
+        self.rect.width = 4 * TILESIZE
+        self.rect.height = 4 *TILESIZE
+        self.x = x
+        self.y = y
+        self.rect.x = x * TILESIZE 
+        self.rect.y = y * TILESIZE
+
+class Cloud(pg.sprite.Sprite):
+    def __init__ (self,game,x,y):
+        self.groups = game.all_sprites
+        pg.sprite.Sprite.__init__(self,self.groups)
+        self.game = game
+        self.image = game.cloud_img
+        self.rect = self.image.get_rect()
+        self.rect.width = 4 * TILESIZE
+        self.x = x
+        self.y = y
+        self.rect.x = x * TILESIZE 
+        self.rect.y = y * TILESIZE
+
+class Pond(pg.sprite.Sprite):
+    def __init__ (self,game,x,y):
+        self.groups = game.all_sprites
+        pg.sprite.Sprite.__init__(self,self.groups)
+        self.game = game
+        self.image = game.pond_img
+        self.rect = self.image.get_rect()
+        self.rect.width = 4 * TILESIZE
+        self.rect.height = 2 * TILESIZE
+        self.x = x
+        self.y = y
+        self.rect.x = x * TILESIZE
+        self.rect.y = y * TILESIZE
+
+class Door(pg.sprite.Sprite):
+    def __init__ (self,game,x,y):
+        self.groups = game.all_sprites
+        pg.sprite.Sprite.__init__(self,self.groups)
+        self.game = game
+        self.image = pg.Surface((TILESIZE,TILESIZE))
+        self.rect = self.image.get_rect()
+        self.x = x
+        self.y = y
+        self.rect.x = x * TILESIZE 
+        self.rect.y = y * TILESIZE
+        
+
+        
